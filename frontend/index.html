@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardioScheduler Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [patients, setPatients] = useState([{ name: '', exam_type: 'Standard Echo' }]);
+            const [schedule, setSchedule] = useState([]);
+            const [day, setDay] = useState('Monday');
+            const [loading, setLoading] = useState(false);
+
+            // In production, replace this with your Render URL
+            const API_BASE = "http://localhost:8000"; 
+
+            const addPatient = () => {
+                setPatients([...patients, { name: '', exam_type: 'Standard Echo' }]);
+            };
+
+            const updatePatient = (index, field, value) => {
+                const newPatients = [...patients];
+                newPatients[index][field] = value;
+                setPatients(newPatients);
+            };
+
+            const generateSchedule = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/schedule`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ day_name: day, requests: patients }),
+                    });
+                    const data = await response.json();
+                    setSchedule(data);
+                } catch (error) {
+                    alert("Error connecting to backend. Make sure the server is running!");
+                }
+                setLoading(false);
+            };
+
+            return (
+                <div className="p-8 max-w-6xl mx-auto">
+                    <header className="mb-8 flex justify-between items-center">
+                        <h1 className="text-3xl font-bold text-blue-800">❤️ CardioScheduler</h1>
+                        <div className="flex items-center gap-4">
+                            <label className="font-medium">Scheduling Day:</label>
+                            <select 
+                                value={day} 
+                                onChange={(e) => setDay(e.target.value)}
+                                className="border rounded p-2 bg-white"
+                            >
+                                <option>Monday</option>
+                                <option>Tuesday</option>
+                                <option>Wednesday</option>
+                                <option>Thursday</option>
+                                <option>Friday</option>
+                                <option>Saturday</option>
+                                <option>Sunday</option>
+                            </select>
+                        </div>
+                    </header>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {/* Input Section */}
+                        <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                            <h2 className="text-xl font-semibold mb-4">Patient List</h2>
+                            <div className="space-y-3 mb-4">
+                                {patients.map((p, i) => (
+                                    <div key={i} className="p-3 border rounded bg-gray-50 space-y-2">
+                                        <input 
+                                            placeholder="Patient Name" 
+                                            className="w-full p-2 border rounded"
+                                            value={p.name}
+                                            onChange={(e) => updatePatient(i, 'name', e.target.value)}
+                                        />
+                                        <select 
+                                            className="w-full p-2 border rounded"
+                                            value={p.exam_type}
+                                            onChange={(e) => updatePatient(i, 'exam_type', e.target.value)}
+                                        >
+                                            <option>Standard Echo</option>
+                                            <option>Vascular Study</option>
+                                            <option>Bubble Study</option>
+                                            <option>Stress Echo</option>
+                                        </select>
+                                    </div>
+                                ))}
+                            </div>
+                            <button 
+                                onClick={addPatient}
+                                className="w-full py-2 mb-4 text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition"
+                            >
+                                + Add Patient
+                            </button>
+                            <button 
+                                onClick={generateSchedule}
+                                disabled={loading}
+                                className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-lg disabled:bg-gray-400"
+                            >
+                                {loading ? "Generating..." : "✨ Auto-Schedule Now"}
+                            </button>
+                        </div>
+
+                        {/* Results Section */}
+                        <div className="md:col-span-2 bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                            <h2 className="text-xl font-semibold mb-4">Daily Schedule</h2>
+                            {schedule.length === 0 ? (
+                                <div className="text-center py-20 text-gray-400 italic">
+                                    Enter patients and click generate to see the schedule.
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-gray-100">
+                                                <th className="p-3 border">Time</th>
+                                                <th className="p-3 border">Patient</th>
+                                                <th className="p-3 border">Exam</th>
+                                                <th className="p-3 border">Tech</th>
+                                                <th className="p-3 border">Room</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {schedule.map((item, i) => (
+                                                <tr key={i} className={item.error ? "bg-red-50" : "hover:bg-gray-50"}>
+                                                    {item.error ? (
+                                                        <td colSpan="5" className="p-3 border text-red-600 text-center font-medium">
+                                                            {item.error}
+                                                        </td>
+                                                    ) : (
+                                                        <>
+                                                            <td className="p-3 border font-mono">{item.time}</td>
+                                                            <td className="p-3 border font-bold">{item.patient}</td>
+                                                            <td className="p-3 border">{item.exam}</td>
+                                                            <td className="p-3 border">{item.tech}</td>
+                                                            <td className="p-3 border">{item.room}</td>
+                                                        </>
+                                                    )}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
